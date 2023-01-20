@@ -29,6 +29,7 @@ module fpnew_rounding #(
 );
 
   logic round_up; // Rounding decision
+  logic [AbsWidth-1:0] abs_value_rod; // For ROD
 
   // Take the rounding decision according to RISC-V spec
   // RoundMode | Mnemonic | Meaning
@@ -38,6 +39,7 @@ module fpnew_rounding #(
   //    010    |   RDN    | Round Down (towards -\infty)
   //    011    |   RUP    | Round Up (towards \infty)
   //    100    |   RMM    | Round to Nearest, ties to Max Magnitude
+  //    101    |   ROD    | Round towards odd (this is not define in RISC-V FP-SPEC)
   //  others   |          | *invalid*
   always_comb begin : rounding_decision
     unique case (rnd_mode_i)
@@ -57,8 +59,11 @@ module fpnew_rounding #(
     endcase
   end
 
+  // For rounding towardsodd i.e OR b/w last bit of mantissa and sticky_bits.
+  assign abs_value_rod = {abs_value_i[AbsWidth-1:1],abs_value_i[0] | (|round_sticky_bits_i)};
+
   // Perform the rounding, exponent change and overflow to inf happens automagically
-  assign abs_rounded_o = abs_value_i + round_up;
+  assign abs_rounded_o =(rnd_mode_i==fpnew_pkg::ROD)? abs_value_rod : abs_value_i + round_up;
 
   // True zero result is a zero result without dirty round/sticky bits
   assign exact_zero_o = (abs_value_i == '0) && (round_sticky_bits_i == '0);
